@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment (NEVER commit secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Prisma
+prisma/*.db
+server/src/generated/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Wallet keypairs (NEVER commit)
+.keys/
+
+# Misc
+*.pem
+.vercel
+.turbo
+
+# Raw audio source files at repo root (web copies live in frontend/public/audio)
+/*.mp3
+
+# Claude Code local state (machine-specific)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

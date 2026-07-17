@@ -1,0 +1,4 @@
+-- PULSE Database Schema (PostgreSQL 16)
+-- SOURCE OF TRUTH: ../prisma/schema.prisma — regenerate this file after migrations with:
+--   npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > docs/database-schema.sql
+-- Placeholder until the first migration runs.

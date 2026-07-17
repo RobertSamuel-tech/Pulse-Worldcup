@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  /* Neo-brutalist: light glassmorphic surfaces, hard black ink */
+  --background: #faf5ff; /* purple-50 base under the gradient */
+  --foreground: #0a0a0a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: linear-gradient(to bottom right, #faf5ff, #eff6ff) fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Data-refresh "pulse" — applied to match cards when fresh data arrives (SECTION 9) */
+@keyframes pulse-glow {
+  0% {
+    box-shadow:
+      8px 8px 0px 0px rgba(0, 0, 0, 1),
+      0 0 0 0 rgba(99, 102, 241, 0.5);
+  }
+  70% {
+    box-shadow:
+      8px 8px 0px 0px rgba(0, 0, 0, 1),
+      0 0 0 10px rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow:
+      8px 8px 0px 0px rgba(0, 0, 0, 1),
+      0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 1.2s ease-out 1;
+}
+
+/* Legendary scratch card: animated holographic shimmer (see /scratch) */
+@keyframes holo-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.holo-shimmer {
+  background: linear-gradient(
+    120deg,
+    #f9a8d4,
+    #c4b5fd,
+    #93c5fd,
+    #6ee7b7,
+    #fde68a,
+    #f9a8d4
+  );
+  background-size: 300% 300%;
+  animation: holo-shift 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo-shimmer {
+    animation: none;
+  }
+}

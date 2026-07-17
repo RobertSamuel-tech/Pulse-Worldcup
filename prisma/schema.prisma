@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String        @id @default(cuid())
+  walletAddress String        @unique
+  username      String?
+  favoriteTeam  String?
+  totalPoints   Int           @default(0)
+  currentStreak Int           @default(0)
+  bestStreak    Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  predictions   Prediction[]
+  achievements  Achievement[]
+  scratchCards  ScratchCard[]
+
+  @@index([walletAddress])
+  // Leaderboard sort: ORDER BY totalPoints DESC, createdAt ASC (tie-break)
+  @@index([totalPoints, createdAt])
+  @@map("users")
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  txlineMatchId String      @unique
+  homeTeam      String
+  awayTeam      String
+  homeTeamCode  String
+  awayTeamCode  String
+  homeScore     Int         @default(0)
+  awayScore     Int         @default(0)
+  status        MatchStatus @default(SCHEDULED)
+  startTime     DateTime
+  competition   String
+  stage         String?
+  venue         String?
+
+  predictions   Prediction[]
+  events        MatchEvent[]
+  scratchCards  ScratchCard[]
+
+  @@index([status])
+  @@index([startTime])
+  @@map("matches")
+}
+
+model Prediction {
+  id              String     @id @default(cuid())
+  userId          String
+  matchId         String
+  predictedAction Boolean // TRUE = event expected, FALSE = calm expected
+  matchMinute     Int
+  resolved        Boolean    @default(false)
+  wasCorrect      Boolean?
+  eventOccurred   Boolean?
+  eventType       EventType?
+  pointsEarned    Int        @default(0)
+  createdAt       DateTime   @default(now())
+  resolvedAt      DateTime?
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match           Match      @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([matchId])
+  @@index([resolved])
+  // Active-prediction check, history pagination, per-user stats groupBy
+  @@index([userId, resolved, createdAt])
+  // Sweeper worker: overdue unresolved predictions (findOverdue)
+  @@index([resolved, createdAt])
+  @@map("predictions")
+}
+
+model MatchEvent {
+  id          String    @id @default(cuid())
+  matchId     String
+  type        EventType
+  minute      Int
+  team        String
+  player      String?
+  description String
+  txlineData  Json
+  createdAt   DateTime  @default(now())
+
+  match       Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([createdAt])
+  @@map("match_events")
+}
+
+model Achievement {
+  id         String   @id @default(cuid())
+  userId     String
+  badgeType  String
+  nftAddress String?
+  earnedAt   DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("achievements")
+}
+
+// ── Pulse Scratch (scratch-card game mode — see /scratch) ─────────────────
+
+model ScratchCard {
+  id            String        @id @default(cuid())
+  userId        String
+  matchId       String
+  tier          ScratchTier
+  status        ScratchStatus @default(ACTIVE)
+  /// Match minute when the card was locked in (window start on the pitch clock).
+  startMinute   Int?
+  /// Points deducted at lock-in (0 for COMMON).
+  pointsWagered Int           @default(0)
+  /// Payout + refund credited at resolution.
+  pointsEarned  Int           @default(0)
+  /// Per-card secret salting the panel commitment hashes (provable fairness).
+  revealSalt    String
+  lockedAt      DateTime?
+  /// When the 2-minute observation window closes (lockedAt + 2min).
+  resolveAt     DateTime?
+  resolvedAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match         Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  panels        ScratchPrediction[]
+  result        ScratchResult?
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  // Sweeper: overdue LOCKED cards awaiting resolution
+  @@index([status, resolveAt])
+  @@map("scratch_cards")
+}
+
+model ScratchPrediction {
+  id             String      @id @default(cuid())
+  cardId         String
+  panelNumber    Int
+  /// GOAL | HOME_GOAL | AWAY_GOAL | YELLOW_CARD | RED_CARD | ANY_CARD | CORNER | TWO_CORNERS | ANY_EVENT | CALM
+  panelType      String
+  /// { prediction: boolean } — YES/NO the panel event happens in the window.
+  predictedValue Json
+  /// SHA-256 of predictedValue + card.revealSalt — committed before reveal.
+  valueHash      String
+  /// Set when the user scratches the panel (server-side reveal).
+  revealed       Boolean     @default(false)
+  /// { occurred: boolean, count: number } — filled at resolution.
+  actualValue    Json?
+  isCorrect      Boolean?
+  pointsEarned   Int         @default(0)
+
+  card           ScratchCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, panelNumber])
+  @@map("scratch_predictions")
+}
+
+model ScratchResult {
+  id                 String      @id @default(cuid())
+  cardId             String      @unique
+  totalPredictions   Int
+  correctPredictions Int
+  pointsEarned       Int
+  /// correctPredictions / totalPredictions, 0..1
+  accuracy           Float
+  /// Per-panel breakdown + counter diffs used, for the results modal & audits.
+  resolutionDetails  Json
+  resolvedAt         DateTime    @default(now())
+
+  card               ScratchCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@map("scratch_results")
+}
+
+enum ScratchTier {
+  COMMON
+  RARE
+  LEGENDARY
+}
+
+enum ScratchStatus {
+  ACTIVE // created, being scratched — not yet locked
+  LOCKED // locked in, 2-minute window running
+  RESOLVED
+  EXPIRED // never locked within the allowed time
+}
+
+// ── Demo/Replay mode (recorded scenarios, NOT TxLINE data — see /replay) ──
+
+model DemoMatch {
+  id           String      @id @default(cuid())
+  label        String // e.g. "Goal Fest", "Tense Finish", "Card Chaos"
+  homeTeam     String
+  awayTeam     String
+  homeTeamCode String
+  awayTeamCode String
+  homeScore    Int
+  awayScore    Int
+  stage        String
+  excitement   Int // 1-5 rating shown on the scenario card
+  source       String      @default("hardcoded") // "hardcoded" | "openrouter"
+  createdAt    DateTime    @default(now())
+
+  events       DemoEvent[]
+
+  @@map("demo_matches")
+}
+
+model DemoEvent {
+  id          String    @id @default(cuid())
+  matchId     String
+  type        EventType
+  minute      Int
+  team        String // "home" | "away"
+  player      String?
+  description String
+
+  match       DemoMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@map("demo_events")
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  HALFTIME
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+enum EventType {
+  GOAL
+  RED_CARD
+  YELLOW_CARD
+  CORNER
+  PENALTY
+  SUBSTITUTION
+  NONE
+}
