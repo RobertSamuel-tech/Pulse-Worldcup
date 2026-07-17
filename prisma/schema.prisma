@@ -1,6 +1,9 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../server/src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../server/src/generated/prisma"
+  // The server compiles to CommonJS (tsc, type:"commonjs") — ESM output would
+  // ship import.meta into dist/ and crash at runtime (broke the first deploy).
+  moduleFormat = "cjs"
 }
 
 datasource db {
