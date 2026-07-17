@@ -1,5 +1,7 @@
-# PULSE backend (Fastify + Prisma) — deployed on Railway
-FROM node:22-alpine
+# PULSE backend (Fastify + Prisma)
+# node:24 matches the npm major the lockfile was generated with (npm 11) —
+# npm 10 rejects this lockfile over optional-dep entries (utf-8-validate).
+FROM node:24-alpine
 
 WORKDIR /app
 
