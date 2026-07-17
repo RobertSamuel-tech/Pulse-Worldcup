@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+.git
+.next
+**/.next
+frontend
+neobrutalist-ui-design
+docs
+tests
+*.mp3
+*.md
+.env
+.env.*
+**/.keys
+server/dist
+server/src/generated
+.claude

@@ -1,0 +1,36 @@
+# Render Blueprint — PULSE backend (Fastify + Prisma, Docker runtime)
+# Secrets (DATABASE_URL, REDIS_URL, JWT_SECRET, …) are set in the Render
+# dashboard/API, never committed here.
+services:
+  - type: web
+    name: pulse-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TXLINE_NETWORK
+        value: devnet
+      - key: TXLINE_BASE_URL
+        value: https://txline-dev.txodds.com
+      - key: TXLINE_SERVICE_LEVEL
+        value: "1"
+      - key: TXLINE_SUBSCRIPTION_WEEKS
+        value: "4"
+      - key: SOLANA_RPC_URL
+        value: https://api.devnet.solana.com
+      - key: ALLOW_PREDICTIONS_PRELIVE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
